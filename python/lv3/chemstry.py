@@ -7,6 +7,12 @@ num_pattern = re.compile(r'\d')
 br_start_pattern = re.compile(r'\[|\{|\(')
 br_end_pattern = re.compile(r'\]|\}|\)')
 
+def get_num(formula, i):
+    r = re.match(r'\d+', formula[i:])
+    len = r.span()[1] - r.span()[0]
+    result = int(r.group())
+    return result,len
+
 def calculate_br_pos(formula):
     result = []
     pair_pattern = re.compile(r'\[\w+\]|\{\w+\}|\(\w+\)')
@@ -28,14 +34,16 @@ def parse_molecule(formula):
                 if sub_atom_pattern.match(formula[i+1]):
                     name = formula[i] + formula[i+1]
                     if num_pattern.match(formula[i+2]):
-                        result[name].update({i+2 : formula[i+2]})
-                        i += 3
+                        num,num_len = get_num(formula, i+2)
+                        result[name].update({i+2 : num})
+                        i = i+2+num_len
                     else:
                         result[name].update({i+1 : 1})
                         i += 2
                 elif num_pattern.match(formula[i+1]):
-                    result[name].update({i+1 : formula[i+1]})
-                    i += 2
+                    num,num_len = get_num(formula, i+1)
+                    result[name].update({i+1 : num})
+                    i = i + 1 + num_len
                 else:
                     result[name].update({i : 1})
                     i += 1
@@ -43,8 +51,9 @@ def parse_molecule(formula):
                 i += 1
             elif br_end_pattern.match(formula[i]):
                 if num_pattern.match(formula[i+1]):
-                    result = add_br_end_num(result, i+1, formula[i+1], br_position)
-                    i += 2
+                    num,num_len = get_num(formula, i+1)
+                    result = add_br_end_num(result, i+1, num, br_position)
+                    i += 1 + num_len
                 else:
                     result = add_br_end_num(result, i+1, 1, br_position)
                     i += 1
@@ -53,11 +62,13 @@ def parse_molecule(formula):
         except IndexError:
             if num_pattern.match(formula[len(formula)-1]):
                 if atom_pattern.match(formula[i]):
-                    result[name].update({i+1, formula[i+1]})
-                    i += 2
+                    num,num_len = get_num(formula, i+1)
+                    result[name].update({i+1, num})
+                    i = i + 1 + num_len
                 elif br_end_pattern.match(formula[i]):
-                    result = add_br_end_num(result, i+1, formula[i+1], br_position)
-                    i += 2
+                    num,num_len = get_num(formula, i+1)
+                    result = add_br_end_num(result, i+1, num, br_position)
+                    i += 1 + num_len
                 else:
                     i += 1
             elif br_end_pattern.match(formula[len(formula)-1]):
@@ -74,16 +85,17 @@ def parse_molecule(formula):
                 i += 1
             continue
     result = calculate_result(result)
+    print result
     return result
 
 def add_br_end_num(result, i, v, br_position):
-    import pdb; pdb.set_trace()
     for elem in br_position:
         if elem[1] == i:
             for value in result.itervalues():
                 for key in value.keys():
                     if key > elem[0] and key < elem[1]:
-                        value[key] = int(value[key]) * v
+                        value[key] = int(value[key]) * int(v)
+    return result
 
 def calculate_result(result):
     result = {key:sum([int(v) for v in value.itervalues()]) for key,value in result.iteritems()}
